@@ -41,6 +41,7 @@ type Exporter struct {
 	evictions             *prometheus.Desc
 	reclaimed             *prometheus.Desc
 	malloced              *prometheus.Desc
+	gomcStatsLatency      *prometheus.Desc
 	itemsNumber           *prometheus.Desc
 	itemsAge              *prometheus.Desc
 	itemsCrawlerReclaimed *prometheus.Desc
@@ -163,6 +164,12 @@ func NewExporter(server string, timeout time.Duration) *Exporter {
 		malloced: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "malloced_bytes"),
 			"Number of bytes of memory allocated to slab pages.",
+			nil,
+			nil,
+		),
+		gomcStatsLatency: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "gomc_stats_latency"),
+			"Latency, in seconds, of STATS command as observed by gomemcache client.",
 			nil,
 			nil,
 		),
@@ -308,6 +315,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- e.evictions
 	ch <- e.reclaimed
 	ch <- e.malloced
+	ch <- e.gomcStatsLatency
 	ch <- e.itemsNumber
 	ch <- e.itemsAge
 	ch <- e.itemsCrawlerReclaimed
@@ -394,6 +402,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(e.evictions, prometheus.CounterValue, parse(s, "evictions"))
 		ch <- prometheus.MustNewConstMetric(e.reclaimed, prometheus.CounterValue, parse(s, "reclaimed"))
 
+		ch <- prometheus.MustNewConstMetric(e.gomcStatsLatency, prometheus.GaugeValue, parse(s, "gomc_stats_latency"))
 		ch <- prometheus.MustNewConstMetric(e.malloced, prometheus.GaugeValue, parse(s, "total_malloced"))
 
 		for slab, u := range t.Items {

@@ -735,14 +735,19 @@ func (c *Client) StatsReset() error {
 }
 
 func (c *Client) statsFromAddr(addr net.Addr, cb func(Stats)) error {
+	startTime := time.Now()
 	return c.withAddrRw(addr, func(rw *bufio.ReadWriter) error {
 		cmds := []string{"stats\r\n", "stats slabs\r\n", "stats items\r\n"}
+		var duration time.Duration
 		var stats Stats
 		stats.Stats = make(map[string]string)
 		stats.Slabs = make(map[int]map[string]string)
 		stats.Items = make(map[int]map[string]string)
 
-		for _, cmd := range cmds {
+		for idx, cmd := range cmds {
+			if idx == 0 {
+				duration = time.Since(startTime)
+			}
 			line, err := writeReadLine(rw, cmd)
 			if err != nil {
 				return err
@@ -793,6 +798,7 @@ func (c *Client) statsFromAddr(addr net.Addr, cb func(Stats)) error {
 				}
 			}
 		}
+		stats.Stats["gomc_stats_latency"] = strconv.FormatFloat(duration.Seconds(), 'f', -1, 64)
 		cb(stats)
 		return nil
 	})
